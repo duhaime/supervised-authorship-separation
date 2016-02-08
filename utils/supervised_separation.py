@@ -1,4 +1,5 @@
 from __future__ import division
+from nltk.corpus import stopwords
 from collections import defaultdict
 import glob, codecs, os, operator, multiprocessing
 
@@ -32,7 +33,18 @@ def get_segments(l, n):
     yield l[i:i+n]
 
 
-def get_overrepresented_words(files, file_to_class, n=500):
+def clean_string(s):
+  """
+  Read in a string s and return a cleaned
+  representation of that string
+  """
+  return s
+  s = ''.join(i for i in s.lower() if i in alphabet)
+  s = " ".join(w for w in s.split() if w not in stopwords)
+  return s
+
+
+def get_overrepresented_words(files, file_to_class, holdout_directory, n=500):
   """
   Read in a glob path, find the number of 2000 word
   chunks from class A and class B texts that contain each 
@@ -62,19 +74,21 @@ def get_overrepresented_words(files, file_to_class, n=500):
       file_class = file_to_class[i]
 
       # retrieve current file's words
-      words = f.split()
+      words = clean_string(f).split()
 
       # segment current file into 2000 word units
-      word_segments = list(get_segments(words, 2000))
+      segments = list(get_segments(words, 2000))
 
       # add the number of segments for the current file to 
       # the total number of segments for the current class
-      segment_counter[file_class] += len(word_segments)
+      segment_counter[file_class] += len(segments)
 
-      for word_segment in word_segments:
+      # skip the last segment, as it won't contain 
+      # the desired number of words
+      for segment in segments:
 
         # deduplicate words in segment
-        set_of_words_in_segment = list(set(word_segment))
+        set_of_words_in_segment = list(set(segment))
 
         for word in set_of_words_in_segment:
 
@@ -117,6 +131,12 @@ def get_overrepresented_words(files, file_to_class, n=500):
     # nb: if you print sorted_marker_words[:n],
     # you can see how overrepresented each word is in
     # the current class
+    #print sorted_marker_words[:n]
+
+    # signal sum represents an aggregate measure of the strength of the
+    # authorial signal captured for the present author
+    signal_sum = sum(i[1] for i in sorted_marker_words[:n])
+    print holdout_directory, signal_sum
 
     # iterate over the n words most overrepresented by the current class
     for t in sorted_marker_words[:n]:
@@ -147,7 +167,7 @@ def count_markers_in_segments(infiles, file_to_class, overrepresented_words):
       file_class = file_to_class[i]
 
       # retrieve current file's words
-      words = f.split()
+      words = clean_string(f).split()
 
       # segment current file into 2000 word units
       word_segments = list(get_segments(words, 2000))
@@ -212,11 +232,11 @@ def main_process(holdout_directory):
   Main process to be called. Each process will call this 
   process, and this process will call all the others.
   """
-  infiles = glob.glob("stylometry_infiles/*/*.txt")
+  infiles = glob.glob(target_directory + "/*/*.txt")
   file_to_class = assign_files_to_classes(
     infiles, holdout_directory)
   overrepresented_words = get_overrepresented_words(
-    infiles, file_to_class)
+    infiles, file_to_class, holdout_directory)
   overrepresented_words_per_segment = count_markers_in_segments(
     infiles, file_to_class, overrepresented_words)
   write_overrepresented_words_per_segment(
@@ -228,7 +248,12 @@ if __name__ == "__main__":
   # to all other files in the corpus. It could be comprised of an
   # author's works, if we want to compare that author to other
   # authors
-  holdout_directories = [i.split("/")[-1] for i in glob.glob("stylometry_infiles/*")]
+  target_directory = "../data/stylometry_infiles"
+
+  alphabet = "abcdefghijklmnopqrstuvwxyz "
+  stopwords = set(stopwords.words("english"))
+
+  holdout_directories = [i.split("/")[-1] for i in glob.glob(target_directory + "/*")]
   main_pool = multiprocessing.Pool()
   for result in main_pool.imap(main_process, holdout_directories):
     pass
