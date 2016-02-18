@@ -38,8 +38,10 @@ def clean_string(s):
   Read in a string s and return a cleaned
   representation of that string
   """
-  return s
-  s = ''.join(i for i in s.lower() if i in alphabet)
+  #return s
+  s = " ".join(s.split("\n"))
+  s = " ".join(s.split("\r"))
+  s = ''.join(i for i in s.lower() if i in alphabet) 
   s = " ".join(w for w in s.split() if w not in stopwords)
   return s
 
@@ -131,7 +133,7 @@ def get_overrepresented_words(files, file_to_class, holdout_directory, n=500):
     # nb: if you print sorted_marker_words[:n],
     # you can see how overrepresented each word is in
     # the current class
-    #print sorted_marker_words[:n]
+    print sorted_marker_words[:n]
 
     # signal sum represents an aggregate measure of the strength of the
     # authorial signal captured for the present author
@@ -248,7 +250,7 @@ if __name__ == "__main__":
   # to all other files in the corpus. It could be comprised of an
   # author's works, if we want to compare that author to other
   # authors
-  target_directory = "../data/stylometry_infiles"
+  target_directory = "../data/curated_collections/genre"
 
   alphabet = "abcdefghijklmnopqrstuvwxyz "
   stopwords = set(stopwords.words("english"))
