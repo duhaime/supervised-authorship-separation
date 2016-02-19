@@ -1,6 +1,11 @@
 library(ggplot2)
 
-df <- read.table("overrepresented_words_per_segment.txt", sep="\t")
+#####################
+# Author Separation #
+#####################
+
+df <- read.table("overrepresented_words_per_segment_authors.txt", sep="\t")
+
 colnames(df) <- c("holdout_directory", "segment_id", 
                   "segment_class", "class_A_words", "class_B_words")
 
@@ -44,4 +49,34 @@ p <- ggplot(df, aes(x=class_A_words, y=class_B_words, color=segment_class)) +
   guides(colour = guide_legend(override.aes = list(alpha=1))) #make legend alpha=1
 
 ggsave("supervised_authorship_separation.png", plot=p)
+
+
+#####################
+# Gender Separation #
+#####################
+
+df <- read.table("overrepresented_words_per_segment.txt", sep="\t")
+colnames(df) <- c("holdout_id", "record_path", "record_class", "female_words", "male_words")
+
+# because we have a gender class factor with two levels (m/f),
+# only show the separation for one (as showing the separation for the other)
+# is an identical degree of separation
+holdout_gender <- "female"
+
+ggplot(subset(df, holdout_id=="female"), aes(x=female_words, y=male_words, colour=record_class)) +
+  geom_point(alpha=.7)
+
+
+####################
+# Genre Separation #
+####################
+
+df <- read.table("overrepresented_words_per_segment_genre.txt", sep="\t")
+colnames(df) <- c("holdout_level", "record_path", "record_class", 
+                  "words_abundant_in_holdout_group", "words_abundant_in_rest_of_corpus")
+
+
+ggplot(df, aes(x=words_abundant_in_holdout_group, y=words_abundant_in_rest_of_corpus, colour=record_class)) +
+  geom_point(alpha=.3) +
+  facet_wrap(~holdout_level)
   
