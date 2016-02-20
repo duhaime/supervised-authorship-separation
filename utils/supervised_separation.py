@@ -81,13 +81,19 @@ def get_overrepresented_words(files, file_to_class, holdout_directory, n=500):
       # segment current file into 2000 word units
       segments = list(get_segments(words, 2000))
 
-      # add the number of segments for the current file to 
-      # the total number of segments for the current class
-      segment_counter[file_class] += len(segments)
-
       # skip the last segment, as it won't contain 
       # the desired number of words
       for segment in segments:
+
+        # increment the number of segments in this class
+        segment_counter[file_class] += 1
+
+        # if the user wants to limit the maximum number
+        # of segments per class, check to see if we've already
+        # hit the threshold, and if so, continue
+        if maximum_segments_per_class != 0:
+          if segment_counter[file_class] >= maximum_segments_per_class:
+            continue
 
         # deduplicate words in segment
         set_of_words_in_segment = list(set(segment))
@@ -160,6 +166,10 @@ def count_markers_in_segments(infiles, file_to_class, overrepresented_words):
   # each segment 
   overrepresented_words_per_segment = defaultdict(lambda: defaultdict(int))
 
+  # create a counter to keep track of the number of samples
+  # we've analyzed from each class
+  segment_counter = defaultdict(int)
+
   # loop over files, open and read each
   for i in infiles:
     with codecs.open(i, "r", "utf-8") as f:
@@ -175,6 +185,16 @@ def count_markers_in_segments(infiles, file_to_class, overrepresented_words):
       word_segments = list(get_segments(words, 2000))
 
       for c, segment in enumerate(word_segments):
+
+        # increment the number of segments in this class
+        segment_counter[file_class] += 1
+
+        # if the user wants to limit the maximum number
+        # of segments per class, check to see if we've already
+        # hit the threshold, and if so, continue
+        if maximum_segments_per_class != 0:
+          if segment_counter[file_class] >= maximum_segments_per_class:
+            continue
 
         # in order to be able to access the segment later
         # create a segment id = i + c
@@ -219,12 +239,20 @@ def write_overrepresented_words_per_segment(d, file_to_class, holdout_directory)
     "a", "utf-8") as out:
 
     segment_ids = list(d.iterkeys())
-    keys = list(d[segment_ids[0]].iterkeys())
 
     for segment_id in segment_ids:
       segment_class = file_to_class[ ".".join(segment_id.split(".")[:-1]) ]
-      class_A_count = str( d[segment_id][keys[0]] )
-      class_B_count = str( d[segment_id][keys[1]] )
+      # try to retrieve the current segment's count of
+      # A and B class words, but if it doesn't have any 
+      # words from either class, catch the KeyError
+      try:
+        class_A_count = str(d[segment_id]["A"])
+      except KeyError:
+        class_A_count = str(0)
+      try:
+        class_B_count = str(d[segment_id]["B"])
+      except KeyError:
+        class_B_count = str(0)
 
       out.write( "\t".join([holdout_directory, segment_id, 
         segment_class, class_A_count, class_B_count]) + "\n" )
@@ -254,6 +282,13 @@ if __name__ == "__main__":
 
   alphabet = "abcdefghijklmnopqrstuvwxyz "
   stopwords = set(stopwords.words("english"))
+
+  # create a counter that will limit the number of segments
+  # from each class A/B so that users can analyze an equal
+  # number of observations from classes A/B. 
+  # If this value is set to 0, no maximum will be applied, 
+  # so we will not be able to ensure equal class representation
+  maximum_segments_per_class = 1500
 
   holdout_directories = [i.split("/")[-1] for i in glob.glob(target_directory + "/*")]
   main_pool = multiprocessing.Pool()
